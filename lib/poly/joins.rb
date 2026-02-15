@@ -12,7 +12,8 @@ module Poly::Joins
       reflect_on_all_associations(:belongs_to).each do |assoc|
         next unless assoc.options[:polymorphic]
 
-        assoc_name = assoc.name
+        reflection = assoc
+        assoc_name = reflection.name
         method_name = :"joins_#{assoc_name}"
 
         next if singleton_class.method_defined?(method_name)
@@ -25,7 +26,9 @@ module Poly::Joins
           base_klass = klass.base_class
 
           unless join_allowed?(klass, as: assoc_name)
-            raise PolymorphicJoinError, "#{base_klass.name} must declare has_one/has_many as: :#{assoc_name}"
+            raise PolymorphicJoinError,
+                  "Polymorphic join requires #{base_klass} to declare: " \
+                  "has_many :#{self.name.underscore.pluralize}, as: :#{assoc_name}"
           end
 
           source = arel_table
@@ -33,8 +36,9 @@ module Poly::Joins
 
           joins(
             source.join(target)
-                  .on(source["#{assoc_name}_id"].eq(target[:id]))
-                  .and(source["#{assoc_name}_type"].eq(base_klass.name))
+                  .on(source["#{assoc_name}_id"].eq(target[:id])
+                    .and(source["#{assoc_name}_type"].eq(base_klass.name))
+                  )
                   .join_sources
           )
         end
