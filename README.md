@@ -14,7 +14,7 @@ Then run `bundle install`.
 
 ## Requirements
 
-- Ruby >= 3.4
+- Ruby >= 3.2
 - ActiveRecord >= 7.1
 
 ## Usage
