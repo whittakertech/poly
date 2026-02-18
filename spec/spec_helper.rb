@@ -35,6 +35,16 @@ ActiveRecord::Schema.define do
     t.timestamps
   end
 
+  create_table :accounts do |t|
+    t.string :name
+    t.timestamps
+  end
+
+  create_table :ledgers do |t|
+    t.references :account, null: false
+    t.timestamps
+  end
+
   create_table :comments do |t|
     t.text :body
     t.references :commentable, polymorphic: true, null: false
@@ -44,6 +54,15 @@ ActiveRecord::Schema.define do
   create_table :taggings do |t|
     t.references :taggable, polymorphic: true, null: false
     t.string :taggable_role, null: false
+    t.timestamps
+  end
+
+  create_table :coins do |t|
+    t.references :ledger, null: false
+    t.references :resource, polymorphic: true, null: false
+    t.string :resource_role, null: false
+    t.integer :owner_id
+    t.string :owner_type
     t.timestamps
   end
 end
@@ -63,6 +82,15 @@ class User < ApplicationRecord
   has_many :taggings, as: :taggable
 end
 
+class Account < ApplicationRecord
+  has_many :ledgers
+end
+
+class Ledger < ApplicationRecord
+  belongs_to :account
+  has_many :coins
+end
+
 class Comment < ApplicationRecord
   belongs_to :commentable, polymorphic: true
 
@@ -75,6 +103,15 @@ class Tagging < ApplicationRecord
   include Poly::Role
 
   poly_role :taggable
+end
+
+class Coin < ApplicationRecord
+  belongs_to :ledger
+  belongs_to :resource, polymorphic: true
+
+  include Poly::Owners
+
+  poly_owner :resource, owner: -> { ledger&.account }
 end
 
 # Load factories

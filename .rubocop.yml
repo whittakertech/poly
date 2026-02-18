@@ -30,6 +30,9 @@ Metrics/MethodLength:
   Exclude:
     - "lib/poly/joins.rb"
 
+Metrics/ParameterLists:
+  Max: 6
+
 Rails/RakeEnvironment:
   Enabled: false
 

@@ -22,13 +22,15 @@ The default Rake task runs RSpec: `bundle exec rake`
 
 ## Architecture
 
-The gem has two core modules, both implemented as `ActiveSupport::Concern` mixins:
+The gem has three core modules, all implemented as `ActiveSupport::Concern` mixins:
 
 - **`Poly::Joins`** (`lib/poly/joins.rb`) — Dynamically generates type-safe INNER JOIN methods for polymorphic `belongs_to` associations. Calling `define_polymorphic_joins!` creates methods like `joins_commentable(ClassName)` that validate the target class has the reverse `has_many`/`has_one` association before building the join SQL.
 
-- **`Poly::Role`** (`lib/poly/role.rb`) — Adds a validated role column to polymorphic associations via `poly_role(assoc_name)`. Normalizes roles (strip + downcase), validates format (`/\A[a-z0-9_]+\z/`), and provides a `for_role` scope.
+- **`Poly::Role`** (`lib/poly/role.rb`) — Adds a validated role column to polymorphic associations via `poly_role(assoc_name, max_length: 64, immutable: false)`. Normalizes roles (strip + downcase) before validation and in `for_role` queries. Validates format (`/\A[a-z0-9_]+\z/`). `immutable: true` adds an `on: :update` validation preventing role changes after create.
 
-Entry point is `lib/poly.rb` which requires both modules.
+- **`Poly::Owners`** (`lib/poly/owners.rb`) — Stamps `owner_type`/`owner_id` columns (or custom equivalents) before validation via `poly_owner(assoc_name, owner:, type_column:, id_column:, allow_nil: true, immutable: false)`. Validates that the named association is a polymorphic `belongs_to`. Owner must resolve to a persisted `ActiveRecord::Base`. `allow_nil: false` raises if owner is nil. `immutable: true` prevents ownership changes after create.
+
+Entry point is `lib/poly.rb` which requires all three modules.
 
 ## Testing
 

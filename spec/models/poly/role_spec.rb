@@ -97,5 +97,26 @@ RSpec.describe Poly::Role do
 
       expect(results).to be_empty
     end
+
+    it 'normalizes the input role before querying' do
+      tagging = create(:tagging, taggable_role: 'primary')
+
+      expect(Tagging.for_role('  PRIMARY  ')).to contain_exactly(tagging)
+    end
+  end
+
+  describe 'immutability' do
+    it 'prevents role changes on update when immutable: true' do
+      stub_const('ImmutableTagging', Class.new(ApplicationRecord) do
+        self.table_name = 'taggings'
+        belongs_to :taggable, polymorphic: true
+        include Poly::Role
+
+        poly_role :taggable, immutable: true
+      end)
+      tagging = ImmutableTagging.create!(taggable: create(:post), taggable_role: 'primary')
+      tagging.taggable_role = 'secondary'
+      expect(tagging).not_to be_valid
+    end
   end
 end
