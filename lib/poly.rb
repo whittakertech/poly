@@ -5,6 +5,7 @@ require 'poly/version'
 require 'poly/joins'
 require 'poly/role'
 require 'poly/owners'
+require 'poly/migration'
 
 module Poly
 end

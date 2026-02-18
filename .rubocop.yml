@@ -38,6 +38,10 @@ Rails/RakeEnvironment:
 
 RSpec/MultipleExpectations:
   Max: 4
+  Exclude:
+    - "spec/models/poly/migration_spec.rb"
 
 RSpec/ExampleLength:
   Max: 10
+  Exclude:
+    - "spec/models/poly/migration_spec.rb"

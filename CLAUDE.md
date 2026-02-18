@@ -22,7 +22,7 @@ The default Rake task runs RSpec: `bundle exec rake`
 
 ## Architecture
 
-The gem has three core modules, all implemented as `ActiveSupport::Concern` mixins:
+The gem has four core modules:
 
 - **`Poly::Joins`** (`lib/poly/joins.rb`) — Dynamically generates type-safe INNER JOIN methods for polymorphic `belongs_to` associations. Calling `define_polymorphic_joins!` creates methods like `joins_commentable(ClassName)` that validate the target class has the reverse `has_many`/`has_one` association before building the join SQL.
 
@@ -30,7 +30,9 @@ The gem has three core modules, all implemented as `ActiveSupport::Concern` mixi
 
 - **`Poly::Owners`** (`lib/poly/owners.rb`) — Stamps `owner_type`/`owner_id` columns (or custom equivalents) before validation via `poly_owner(assoc_name, owner:, type_column:, id_column:, allow_nil: true, immutable: false)`. Validates that the named association is a polymorphic `belongs_to`. Owner must resolve to a persisted `ActiveRecord::Base`. `allow_nil: false` raises if owner is nil. `immutable: true` prevents ownership changes after create.
 
-Entry point is `lib/poly.rb` which requires all three modules.
+- **`Poly::Migration`** (`lib/poly/migration.rb`) — Migration helpers for declaring polymorphic resource/role/owner columns and indexes consistently in both `create_table/change_table` and `add_column`-style existing table changes.
+
+Entry point is `lib/poly.rb` which requires all modules.
 
 ## Testing
 

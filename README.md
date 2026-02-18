@@ -158,6 +158,68 @@ end
 | `allow_nil:` | `true` | When `false`, raises if the owner resolves to `nil` |
 | `immutable:` | `false` | When `true`, prevents owner changes after create via `on: :update` validation |
 
+### Poly::Migration
+
+Adds migration helpers so polymorphic resource/role/owner columns are declared consistently.
+
+Use it in your migration base class:
+
+```ruby
+class ApplicationMigration < ActiveRecord::Migration[7.1]
+  include Poly::Migration
+end
+```
+
+Supported styles:
+
+- `create_table` / `change_table` via a table builder (`t`)
+- direct existing-table operations via `add_column` style (pass table name)
+
+#### Create Table / Change Table
+
+```ruby
+class CreateCoins < ApplicationMigration
+  def change
+    create_table :coins do |t|
+      poly_resource t, :resource, null: false
+      poly_role t, :resource, null: false
+      poly_owner t, null: false
+      t.timestamps
+    end
+
+    poly_resource_index :coins, :resource
+    poly_owner_index :coins
+  end
+end
+```
+
+#### Existing Table (add_column style)
+
+```ruby
+class AddPolyColumnsToCoins < ApplicationMigration
+  def change
+    poly_resource :coins, :resource, null: false
+    poly_role :coins, :resource, null: false
+    poly_owner :coins, null: false
+
+    poly_resource_index :coins, :resource
+    poly_owner_index :coins
+  end
+end
+```
+
+#### Helper Reference
+
+| Helper | Purpose |
+|---|---|
+| `poly_resource(table_or_builder, name, null: true, id_type: :string)` | Adds `<name>_type` and `<name>_id` |
+| `poly_role(table_or_builder, name, null: true)` | Adds `<name>_role` |
+| `poly_owner(table_or_builder, type_column: :owner_type, id_column: :owner_id, id_type: :string, null: true)` | Adds owner type/id columns |
+| `poly_resource_index(table, name, unique: false)` | Adds index on `<name>_type`, `<name>_id` |
+| `poly_owner_index(table, type_column: :owner_type, id_column: :owner_id, unique: false)` | Adds index on owner columns |
+
+`id_type` defaults to `:string` so owner/resource IDs can store bigint, UUID, ULID, or other identifier formats consistently.
+
 ## Development
 
 ```bash
