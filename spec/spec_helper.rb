@@ -43,7 +43,7 @@ ActiveRecord::Schema.define do
 
   create_table :taggings do |t|
     t.references :taggable, polymorphic: true, null: false
-    t.string :taggable_label, null: false
+    t.string :taggable_role, null: false
     t.timestamps
   end
 end
@@ -72,9 +72,9 @@ end
 class Tagging < ApplicationRecord
   belongs_to :taggable, polymorphic: true
 
-  include Poly::Label
+  include Poly::Role
 
-  labeled_poly :taggable
+  poly_role :taggable
 end
 
 # Load factories

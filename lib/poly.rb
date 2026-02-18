@@ -3,7 +3,7 @@
 require 'active_support/concern'
 require 'poly/version'
 require 'poly/joins'
-require 'poly/label'
+require 'poly/role'
 
 module Poly
 end

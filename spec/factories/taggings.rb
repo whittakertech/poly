@@ -3,6 +3,6 @@
 FactoryBot.define do
   factory :tagging do
     taggable factory: %i[post]
-    taggable_label { 'primary' }
+    taggable_role { 'primary' }
   end
 end

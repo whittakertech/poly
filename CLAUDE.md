@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Poly is a Ruby gem providing type-safe joins and labeled identity utilities for polymorphic `belongs_to` associations in Rails. It targets Ruby >= 3.4 and ActiveRecord/ActiveSupport >= 7.1.
+Poly is a Ruby gem providing type-safe joins and role identity utilities for polymorphic `belongs_to` associations in Rails. It targets Ruby >= 3.2 and ActiveRecord/ActiveSupport >= 7.1.
 
 ## Commands
 
@@ -26,7 +26,7 @@ The gem has two core modules, both implemented as `ActiveSupport::Concern` mixin
 
 - **`Poly::Joins`** (`lib/poly/joins.rb`) — Dynamically generates type-safe INNER JOIN methods for polymorphic `belongs_to` associations. Calling `define_polymorphic_joins!` creates methods like `joins_commentable(ClassName)` that validate the target class has the reverse `has_many`/`has_one` association before building the join SQL.
 
-- **`Poly::Label`** (`lib/poly/label.rb`) — Adds a validated label column to polymorphic associations via `labeled_poly(assoc_name)`. Normalizes labels (strip + downcase), validates format (`/\A[a-z0-9_]+\z/`), and provides a `for_label` scope.
+- **`Poly::Role`** (`lib/poly/role.rb`) — Adds a validated role column to polymorphic associations via `poly_role(assoc_name)`. Normalizes roles (strip + downcase), validates format (`/\A[a-z0-9_]+\z/`), and provides a `for_role` scope.
 
 Entry point is `lib/poly.rb` which requires both modules.
 
