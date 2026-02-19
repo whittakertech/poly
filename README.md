@@ -1,73 +1,169 @@
 # Poly
 
-Type-safe joins, role identity, and owner identity for polymorphic `belongs_to` associations in Rails.
+Type-safe joins, role identity, owner identity, and migration discipline for polymorphic `belongs_to` associations in Rails.
+
+---
+
+## What Is Poly?
+
+Poly is a structural identity substrate for Rails polymorphism.
+
+It provides:
+
+- Type-safe polymorphic joins
+- Role semantics for polymorphic relationships
+- Owner stamping for write-time identity projection
+- Migration helpers for consistent schema topology
+
+Poly does **not** implement tenancy, policy, or business logic.
+
+---
+
+## Mental Model
+
+```mermaid
+flowchart LR
+    A[ActiveRecord Model]
+    B[Polymorphic belongs_to]
+    C[Role Column]
+    D[Owner Columns]
+    E[Composite Indexes]
+
+    A --> B
+    B --> C
+    B --> D
+    C --> E
+    D --> E
+```
+
+Poly strengthens the edges around polymorphic identity.
+
+---
 
 ## Installation
 
 Add to your Gemfile:
 
 ```ruby
-gem 'poly'
+gem "poly"
 ```
 
-Then run `bundle install`.
+Then:
+
+```bash
+bundle install
+```
+
+---
 
 ## Requirements
 
 - Ruby >= 3.2
 - ActiveRecord >= 7.1
 
-## Usage
+---
 
-### Poly::Joins
+# Quickstart
 
-Generates type-safe `INNER JOIN` methods for polymorphic associations. Include the module in a model that has a polymorphic `belongs_to`, and it will define a `joins_<association>` class method for each one.
+### Migration
+
+```ruby
+class CreateItems < ActiveRecord::Migration[7.1]
+  include Poly::Migration
+
+  def change
+    create_table :items do |t|
+      poly_resource t, :itemable, null: false
+      poly_role     t, :itemable, null: false
+      poly_owner    t, null: false
+      t.timestamps
+    end
+
+    poly_resource_index :items, :itemable
+    poly_owner_index    :items
+  end
+end
+```
+
+---
+
+### Model
+
+```ruby
+class Item < ApplicationRecord
+  belongs_to :itemable, polymorphic: true
+
+  include Poly::Role
+  include Poly::Owners
+
+  poly_role  :itemable
+  poly_owner :itemable, owner: -> { account }
+end
+```
+
+---
+
+# Modules
+
+---
+
+# 1. Poly::Joins
+
+Generates type-safe `INNER JOIN` methods for polymorphic associations.
+
+### Example
 
 ```ruby
 class Comment < ApplicationRecord
   belongs_to :commentable, polymorphic: true
-
   include Poly::Joins
 end
-
-class Post < ApplicationRecord
-  has_many :comments, as: :commentable
-end
-
-class User < ApplicationRecord
-  has_many :comments, as: :commentable
-end
 ```
 
-Now you can join through the polymorphic association by passing the target class:
+Now:
 
 ```ruby
-# Join comments to the posts table
 Comment.joins_commentable(Post)
-# => SELECT "comments".* FROM "comments"
-#    INNER JOIN "posts"
-#    ON "comments"."commentable_id" = "posts"."id"
-#    AND "comments"."commentable_type" = 'Post'
-
-# Chainable with other scopes
-Comment.joins_commentable(Post).where(posts: { title: 'Hello' })
-
-# Join to a different target type
-Comment.joins_commentable(User).where(users: { name: 'Lee' })
+Comment.joins_commentable(User)
 ```
 
-**Safety:** The target class must declare the reverse association (`has_many` or `has_one` with `as: :commentable`). If it doesn't, a `PolymorphicJoinError` is raised:
+Generated SQL:
 
-```ruby
-Comment.joins_commentable(Unrelated)
-# => PolymorphicJoinError: Unrelated must declare has_one/has_many as: :commentable
+```sql
+INNER JOIN "posts"
+ON "comments"."commentable_id" = "posts"."id"
+AND "comments"."commentable_type" = 'Post'
 ```
 
-### Poly::Role
+> [!IMPORTANT]
+> The target class must declare the reverse association:
+>
+> ```ruby
+> has_many :comments, as: :commentable
+> ```
+>
+> Otherwise `PolymorphicJoinError` is raised.
 
-Adds a validated role column to a polymorphic association. This is useful when a single polymorphic relationship needs to distinguish between different roles or categories.
+### Join Flow
 
-Your table needs a `<association>_role` string column:
+```mermaid
+sequenceDiagram
+    participant M as Model
+    participant PJ as Poly::Joins
+    participant T as Target
+
+    M->>PJ: joins_commentable(Post)
+    PJ->>T: Validate reverse association
+    PJ->>M: Generate INNER JOIN
+```
+
+---
+
+# 2. Poly::Role
+
+Adds semantic identity to polymorphic relationships.
+
+## Schema
 
 ```ruby
 create_table :taggings do |t|
@@ -76,11 +172,12 @@ create_table :taggings do |t|
   t.timestamps
 end
 
-# Index: composite on (taggable_type, taggable_id, taggable_role) if uniqueness is required
-add_index :taggings, [:taggable_type, :taggable_id, :taggable_role], unique: true
+add_index :taggings,
+  [:taggable_type, :taggable_id, :taggable_role],
+  unique: true
 ```
 
-Then include the module and declare the role-enabled association:
+## Model
 
 ```ruby
 class Tagging < ApplicationRecord
@@ -89,80 +186,110 @@ class Tagging < ApplicationRecord
   include Poly::Role
 
   poly_role :taggable
-  # optionally:
-  # poly_role :taggable, max_length: 128
   # poly_role :taggable, immutable: true
 end
 ```
 
-This gives you:
+## What You Get
 
-- **Normalization** — roles are stripped and downcased before validation and before `for_role` queries
-- **Validation** — roles must match `/\A[a-z0-9_]+\z/` and be at most 64 characters (configurable via `max_length:`)
-- **Scope** — `for_role` queries by role, normalizing the input automatically
-- **Immutability** — `immutable: true` adds an `on: :update` validation that prevents role changes after create
+- Normalization (`strip + downcase`)
+- Format validation (`/\A[a-z0-9_]+\z/`)
+- Length validation
+- `for_role` scope
+- Optional immutability
 
 ```ruby
-tagging = Tagging.new(taggable: post, taggable_role: '  Primary  ')
-tagging.valid?
-tagging.taggable_role # => "primary"
-
-Tagging.for_role('  PRIMARY  ')
-# => normalizes to 'primary' before querying
+Tagging.for_role("  PRIMARY ")
+# => matches "primary"
 ```
 
-### Poly::Owners
+> [!NOTE]
+> `immutable: true` prevents role changes after create.
 
-Stamps `owner_type`/`owner_id` columns before validation. Useful for recording data ownership at write time without coupling the model to tenancy or policy logic.
+### Role Identity Model
 
-Your table needs `owner_type` and `owner_id` columns (in addition to your polymorphic resource columns):
+```mermaid
+flowchart TD
+    A[Polymorphic Edge]
+    B[Role Column]
+    C[Semantic Meaning]
+
+    A --> B
+    B --> C
+```
+
+---
+
+# 3. Poly::Owners
+
+Stamps root ownership at write time.
+
+No traversal.
+No tenancy logic.
+Just identity projection.
+
+## Schema
 
 ```ruby
 create_table :coins do |t|
-  t.references :ledger, null: false
   t.references :resource, polymorphic: true, null: false
-  t.string :resource_role, null: false
-  t.string :owner_type
-  t.integer :owner_id
+  t.string  :owner_type
+  t.string  :owner_id
   t.timestamps
 end
 
-# Index: always composite — never index owner_type and owner_id separately
 add_index :coins, [:owner_type, :owner_id]
 ```
 
-Then declare how the owner should be resolved:
+> [!WARNING]
+> Never index `owner_type` and `owner_id` separately. Always composite.
+
+## Model
 
 ```ruby
 class Coin < ApplicationRecord
-  belongs_to :ledger
   belongs_to :resource, polymorphic: true
 
   include Poly::Owners
 
   poly_owner :resource, owner: -> { ledger&.account }
-  # optionally:
-  # poly_owner :resource, owner: -> { ledger&.account }, allow_nil: false
-  # poly_owner :resource, owner: -> { ledger&.account }, immutable: true
 end
 ```
 
-**`owner` resolution** — can be a `Proc` (evaluated in instance context), a `Symbol`/`String` (method name called on the record), or a direct `ActiveRecord::Base` instance. The owner must be persisted; an `ArgumentError` is raised otherwise.
+## Owner Resolution Options
 
-**Options:**
+| Option         | Default       | Description                        |
+|----------------|---------------|------------------------------------|
+| `type_column:` | `:owner_type` | Column storing class name          |
+| `id_column:`   | `:owner_id`   | Column storing owner ID            |
+| `allow_nil:`   | `true`        | Raise if owner resolves to nil     |
+| `immutable:`   | `false`       | Prevent owner changes after create |
 
-| Option | Default | Description |
-|---|---|---|
-| `type_column:` | `:owner_type` | Column to store the owner class name |
-| `id_column:` | `:owner_id` | Column to store the owner id |
-| `allow_nil:` | `true` | When `false`, raises if the owner resolves to `nil` |
-| `immutable:` | `false` | When `true`, prevents owner changes after create via `on: :update` validation |
+> [!IMPORTANT]
+> Owner must resolve to a persisted `ActiveRecord::Base`.
+>
+> Otherwise an `ArgumentError` is raised.
 
-### Poly::Migration
+### Ownership Flow
 
-Adds migration helpers so polymorphic resource/role/owner columns are declared consistently.
+```mermaid
+sequenceDiagram
+    participant Record
+    participant PO as Poly::Owners
+    participant Owner
 
-Use it in your migration base class:
+    Record->>PO: before_validation
+    PO->>Owner: resolve owner
+    PO->>Record: stamp owner_type + owner_id
+```
+
+---
+
+# 4. Poly::Migration
+
+Migration helpers for consistent polymorphic topology.
+
+## Usage
 
 ```ruby
 class ApplicationMigration < ActiveRecord::Migration[7.1]
@@ -170,65 +297,74 @@ class ApplicationMigration < ActiveRecord::Migration[7.1]
 end
 ```
 
-Supported styles:
+Supports:
 
-- `create_table` / `change_table` via a table builder (`t`)
-- direct existing-table operations via `add_column` style (pass table name)
+- `create_table`
+- `change_table`
+- direct `add_column` style
 
-#### Create Table / Change Table
-
-```ruby
-class CreateCoins < ApplicationMigration
-  def change
-    create_table :coins do |t|
-      poly_resource t, :resource, null: false
-      poly_role t, :resource, null: false
-      poly_owner t, null: false
-      t.timestamps
-    end
-
-    poly_resource_index :coins, :resource
-    poly_owner_index :coins
-  end
-end
-```
-
-#### Existing Table (add_column style)
-
-```ruby
-class AddPolyColumnsToCoins < ApplicationMigration
-  def change
-    poly_resource :coins, :resource, null: false
-    poly_role :coins, :resource, null: false
-    poly_owner :coins, null: false
-
-    poly_resource_index :coins, :resource
-    poly_owner_index :coins
-  end
-end
-```
-
-#### Helper Reference
+## Helpers
 
 | Helper | Purpose |
-|---|---|
-| `poly_resource(table_or_builder, name, null: true, id_type: :string)` | Adds `<name>_type` and `<name>_id` |
-| `poly_role(table_or_builder, name, null: true)` | Adds `<name>_role` |
-| `poly_owner(table_or_builder, type_column: :owner_type, id_column: :owner_id, id_type: :string, null: true)` | Adds owner type/id columns |
-| `poly_resource_index(table, name, unique: false)` | Adds index on `<name>_type`, `<name>_id` |
-| `poly_owner_index(table, type_column: :owner_type, id_column: :owner_id, unique: false)` | Adds index on owner columns |
+|--------|----------|
+| `poly_resource` | Adds `<name>_type` + `<name>_id` |
+| `poly_role` | Adds `<name>_role` |
+| `poly_owner` | Adds owner columns |
+| `poly_resource_index` | Composite resource index |
+| `poly_owner_index` | Composite owner index |
 
-`id_type` defaults to `:string` so owner/resource IDs can store bigint, UUID, ULID, or other identifier formats consistently.
+## ID Flexibility
 
-## Development
+`id_type` defaults to `:string`.
+
+Supports:
+
+- UUID
+- ULID
+- bigint
+- custom identifiers
+
+---
+
+# Design Principles
+
+Poly is intentionally minimal.
+
+It does not:
+
+- Implement tenancy
+- Infer ownership
+- Traverse associations
+- Inject business logic
+- Generate constraints automatically
+- Enforce policy
+
+It provides structure only.
+
+---
+
+# Development
 
 ```bash
-bundle install              # Install dependencies
-bundle exec rspec           # Run tests
-bundle exec rubocop         # Lint
-COVERAGE=true bundle exec rspec  # Run tests with coverage report
+bundle install
+bundle exec rspec
+bundle exec rubocop
+COVERAGE=true bundle exec rspec
 ```
 
-## License
+---
 
-Released under the [MIT License](https://opensource.org/licenses/MIT).
+# Stability
+
+Poly v1.0.0 declares:
+
+- Public API is stable
+- Breaking changes follow SemVer
+- New features are additive
+- No structural refactors planned
+
+---
+
+# License
+
+MIT — see [LICENSE](LICENSE)
