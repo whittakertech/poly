@@ -6,6 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Poly is a Ruby gem providing type-safe joins and role identity utilities for polymorphic `belongs_to` associations in Rails. It targets Ruby >= 3.2 and ActiveRecord/ActiveSupport >= 7.1.
 
+## Required Reading
+
+- Engine Cohesion: `../CLAUDE.md`
+- Engine Readiness: `../ENGINE_READINESS.md`
+- WhittakerTech Operational Doctrine: `../../WHITTAKERTECH_OPERATIONAL_DOCTRINE.md`
+
 ## Commands
 
 ```bash

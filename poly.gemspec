@@ -16,9 +16,10 @@ Gem::Specification.new do |spec|
 
   spec.metadata['homepage_uri'] = spec.homepage
   spec.metadata['source_code_uri'] = spec.homepage
+  spec.metadata['changelog_uri'] = "#{spec.homepage}/blob/main/CHANGELOG.md"
   spec.metadata['rubygems_mfa_required'] = 'true'
 
-  spec.files = Dir['lib/**/*', 'Rakefile', 'README.md']
+  spec.files = Dir['lib/**/*', 'Rakefile', 'README.md', 'CHANGELOG.md', 'LICENSE']
   spec.require_paths = ['lib']
 
   spec.add_dependency 'activerecord', '>= 7.1'
