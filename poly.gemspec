@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
 
   spec.summary = 'Polymorphic association utilities for ActiveRecord'
   spec.description = 'Type-safe joins and role identity for polymorphic belongs_to associations.'
-  spec.homepage = 'https://github.com/leewhittaker/poly'
+  spec.homepage = 'https://github.com/whittakertech/poly'
   spec.license = 'MIT'
   spec.required_ruby_version = '>= 3.2.0'
 
