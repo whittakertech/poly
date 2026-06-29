@@ -14,8 +14,9 @@ group :development, :test do
 end
 
 group :development do
-  gem 'rubocop', require: false
-  gem 'rubocop-factory_bot', require: false
-  gem 'rubocop-rails', require: false
-  gem 'rubocop-rspec', require: false
+  # Pin the lint toolchain so CI is reproducible; bump deliberately.
+  gem 'rubocop', '~> 1.88.0', require: false
+  gem 'rubocop-factory_bot', '~> 2.28.0', require: false
+  gem 'rubocop-rails', '~> 2.35.0', require: false
+  gem 'rubocop-rspec', '~> 3.10.0', require: false
 end
