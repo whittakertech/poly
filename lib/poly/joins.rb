@@ -54,5 +54,3 @@ module Poly::Joins
     end
   end
 end
-
-class PolymorphicJoinError < StandardError; end
