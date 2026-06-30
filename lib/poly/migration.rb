@@ -40,8 +40,31 @@ module Poly::Migration
     end
   end
 
+  # Stack columns (golden-child history): the prime marker and the audit edge.
+  # Table-builder helper (create_table/change_table):
+  #   poly_stack t
+  # Direct helper (add_column style):
+  #   poly_stack :statuses
+  def poly_stack(table_or_builder, id_type: :string)
+    if table_builder?(table_or_builder)
+      table_or_builder.boolean :is_prime, null: false, default: false
+      table_or_builder.public_send(id_type, :superseded_by_id, null: true)
+    else
+      add_column table_or_builder, :is_prime, :boolean, null: false, default: false
+      add_column table_or_builder, :superseded_by_id, id_type, null: true
+    end
+  end
+
   def poly_resource_index(table, name, unique: false)
     add_index table, [:"#{name}_type", :"#{name}_id"], unique: unique
+  end
+
+  # Partial unique index enforcing exactly one prime per (resource, role).
+  def poly_prime_index(table, name = :resource)
+    add_index table,
+              [:"#{name}_type", :"#{name}_id", :"#{name}_role"],
+              unique: true, where: 'is_prime',
+              name: "index_#{table}_prime"
   end
 
   def poly_owner_index(table, type_column: :owner_type, id_column: :owner_id, unique: false)

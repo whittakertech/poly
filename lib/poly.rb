@@ -6,6 +6,7 @@ require 'poly/polymorphic_join_error'
 require 'poly/joins'
 require 'poly/role'
 require 'poly/owners'
+require 'poly/stack'
 require 'poly/migration'
 
 module Poly

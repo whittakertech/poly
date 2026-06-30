@@ -310,8 +310,10 @@ Supports:
 | `poly_resource` | Adds `<name>_type` + `<name>_id` |
 | `poly_role` | Adds `<name>_role` |
 | `poly_owner` | Adds owner columns |
+| `poly_stack` | Adds `is_prime` + `superseded_by_id` |
 | `poly_resource_index` | Composite resource index |
 | `poly_owner_index` | Composite owner index |
+| `poly_prime_index` | Partial unique index (one prime per resource/role) |
 
 ## ID Flexibility
 
@@ -323,6 +325,168 @@ Supports:
 - ULID
 - bigint
 - custom identifiers
+
+---
+
+# 5. Poly::Stack
+
+A polymorphic, role-discriminated **history** where one card is the current
+**prime** (the golden child) — the top of an append-only stack. `Poly::Role` is
+the same idea at cardinality 1; `Poly::Stack` opens it up to many cards per
+`(resource, role)`, with the most-recently created always prime.
+
+It is **append-only** and **payload agnostic**: it manages the prime marker and
+an audit edge only. The payload column, the actor, and the reason belong to your
+model — Poly::Stack never reads them.
+
+## Schema
+
+```ruby
+create_table :statuses do |t|
+  t.references :resource, polymorphic: true, null: false
+  t.string  :resource_role, null: false
+  t.string  :state, null: false        # your payload — Poly::Stack is agnostic about it
+  t.boolean :is_prime, null: false, default: false
+  t.integer :superseded_by_id          # audit edge (unconstrained)
+  t.timestamps
+end
+
+# Exactly one prime per resource per role, enforced by the database.
+add_index :statuses, %i[resource_type resource_id resource_role],
+          unique: true, where: 'is_prime', name: 'index_statuses_prime'
+```
+
+Or with `Poly::Migration`:
+
+```ruby
+create_table :statuses do |t|
+  poly_resource t, :resource, null: false
+  poly_role t, :resource, null: false
+  t.string :state, null: false
+  poly_stack t
+  t.timestamps
+end
+
+poly_prime_index :statuses, :resource
+```
+
+## The Card Model
+
+`Poly::Stack` is a **card-side** concern — the externality includes it, exactly
+as `Coin` includes `Poly::Role`:
+
+```ruby
+class Status < ApplicationRecord
+  belongs_to :resource, polymorphic: true
+
+  include Poly::Joins
+  include Poly::Stack
+
+  poly_stack :resource
+end
+```
+
+That gives the `prime` scope and append-only priming — the newest card per
+`(resource, role)` becomes prime, the prior prime is demoted, and its
+`superseded_by_id` is linked:
+
+```ruby
+Status.create!(resource: post, resource_role: 'status', state: 'draft')
+Status.create!(resource: post, resource_role: 'status', state: 'public')
+
+Status.where(resource: post, resource_role: 'status').prime  # => the 'public' card
+```
+
+## Wiring a Parent
+
+Poly ships **only the card concern**. The parent-side accessor macro is yours to
+write — the way Midas writes `has_coin` on `Poly::Role`. It's just `for_role`
+(from `Poly::Role`) plus the `prime` scope, composed into associations and
+scopes:
+
+```ruby
+# in your app — a Stackable concern providing a has_stack macro
+module Stackable
+  extend ActiveSupport::Concern
+
+  class_methods do
+    def has_stack(name, class_name: name.to_s.classify, value: :state, dependent: :destroy)
+      label  = name.to_s
+      plural = label.pluralize.to_sym
+      stamp  = :"stack_stamp_#{name}"
+
+      # so `post.statuses << Status.new(...)` stamps the role on add
+      define_method(stamp) do |card|
+        card.resource_role = label if card.respond_to?(:resource_role=) && card.resource_role.blank?
+      end
+
+      has_many plural, -> { for_role(label).order(created_at: :desc) },
+               as: :resource, class_name: class_name, dependent: dependent, before_add: stamp
+      has_one name, -> { for_role(label).prime },
+              as: :resource, class_name: class_name
+
+      cards = -> { class_name.constantize }
+      scope :"where_#{name}",   ->(*v) { joins(name).merge(cards.call.where(value => v.flatten)) }
+      scope :"ever_#{name}",    ->(*v) { where(id: joins(plural).merge(cards.call.where(value => v.flatten)).select(:id)) }
+      scope :"without_#{name}", ->(*v) { where.not(id: public_send(:"where_#{name}", *v).select(:id)) }
+      scope :"never_#{name}",   ->(*v) { where.not(id: public_send(:"ever_#{name}", *v).select(:id)) }
+    end
+  end
+end
+
+class Post < ApplicationRecord
+  include Stackable
+
+  has_stack :status
+  has_stack :visibility, class_name: 'Status'  # second stack, same table, own prime
+end
+```
+
+Which gives you:
+
+```ruby
+post.status                          # => prime Status card (preloadable has_one)
+post.statuses                        # => full stack, newest-first (has_many)
+
+post.statuses.create!(state: 'trash')        # push a card; it becomes prime
+post.statuses << Status.new(state: 'public') # also pushes; role stamped on add
+
+Post.where_status('public')          # prime state = public
+Post.without_status('trash')         # prime != trash, OR no card yet
+Post.ever_status('trash')            # any card in history = trash (de-duped)
+Post.never_status('trash')           # no card ever = trash
+
+Post.includes(:status)               # preload the prime to avoid N+1
+```
+
+## Soft-Delete
+
+`Poly::Stack` is the primitive behind soft-delete-as-history: a `trash` card is a
+deletion, a later card is a restore, and the stack is the audit trail. The
+*meaning* stays in your app — one-liners over your `has_stack` scopes:
+
+```ruby
+scope :live,    -> { without_status(:trash) }
+scope :trashed, -> { where_status(:trash) }
+```
+
+> [!NOTE]
+> Prefer explicit scopes over `default_scope` for soft-delete.
+
+## Priming Flow
+
+```mermaid
+sequenceDiagram
+    participant Card as New Card
+    participant PS as Poly::Stack
+    participant Prior as Prior Prime
+
+    Card->>PS: before_create
+    PS->>Prior: demote (is_prime = false)
+    PS->>Card: claim prime (is_prime = true)
+    Card->>PS: after_create
+    PS->>Prior: link superseded_by_id
+```
 
 ---
 
