@@ -65,6 +65,18 @@ ActiveRecord::Schema.define do
     t.string :owner_type
     t.timestamps
   end
+
+  create_table :statuses do |t|
+    t.references :resource, polymorphic: true, null: false
+    t.string :resource_role, null: false
+    t.string :state, null: false
+    t.boolean :is_prime, null: false, default: false
+    t.integer :superseded_by_id
+    t.timestamps
+  end
+
+  add_index :statuses, %i[resource_type resource_id resource_role],
+            unique: true, where: 'is_prime', name: 'index_statuses_prime'
 end
 
 # Test models
@@ -75,6 +87,13 @@ end
 class Post < ApplicationRecord
   has_many :comments, as: :commentable
   has_many :taggings, as: :taggable
+
+  # The parent macro (`has_stack`) is the consumer's to write; Poly ships only
+  # the card concern. These associations are the wiring a consumer would emit.
+  has_many :statuses, -> { for_role('status').order(created_at: :desc) },
+           as: :resource, class_name: 'Status'
+  has_one :status, -> { for_role('status').prime },
+          as: :resource, class_name: 'Status'
 end
 
 class User < ApplicationRecord
@@ -112,6 +131,15 @@ class Coin < ApplicationRecord
   include Poly::Owners
 
   poly_owner :resource, owner: -> { ledger&.account }
+end
+
+class Status < ApplicationRecord
+  belongs_to :resource, polymorphic: true
+
+  include Poly::Joins
+  include Poly::Stack
+
+  poly_stack :resource
 end
 
 # Load factories

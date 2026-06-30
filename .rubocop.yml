@@ -28,13 +28,21 @@ Metrics/BlockLength:
 Metrics/AbcSize:
   Exclude:
     - "lib/poly/joins.rb"
+    - "lib/poly/stack.rb"
 
 Metrics/MethodLength:
   Exclude:
     - "lib/poly/joins.rb"
+    - "lib/poly/stack.rb"
 
 Metrics/ParameterLists:
   Max: 6
+
+# Poly::Stack deliberately demotes the prior prime and links the audit edge
+# without re-running validations/callbacks on the superseded card.
+Rails/SkipsModelValidations:
+  Exclude:
+    - "lib/poly/stack.rb"
 
 Rails/RakeEnvironment:
   Enabled: false
