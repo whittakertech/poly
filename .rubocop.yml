@@ -5,7 +5,10 @@ plugins:
 
 AllCops:
   TargetRubyVersion: 3.2
-  NewCops: enable
+  # Adopt new cops deliberately (run `rubocop` after a toolchain bump and resolve),
+  # rather than auto-enabling every pending cop on RuboCop's release schedule —
+  # which makes CI non-deterministic when the gem set floats.
+  NewCops: disable
   SuggestExtensions: false
   Exclude:
     - "vendor/**/*"
