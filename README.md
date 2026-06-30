@@ -331,9 +331,9 @@ Supports:
 
 # 5. Poly::Stack
 
-A polymorphic, role-discriminated **history** where one card is the current
-**prime** (the golden child) — the top of an append-only stack. `Poly::Role` is
-the same idea at cardinality 1; `Poly::Stack` opens it up to many cards per
+A polymorphic, role-discriminated **history** where one entry is the current
+**prime** — the top of an append-only stack. `Poly::Role` is
+the same idea at cardinality 1; `Poly::Stack` opens it up to many entries per
 `(resource, role)`, with the most-recently created always prime.
 
 It is **append-only** and **payload agnostic**: it manages the prime marker and
@@ -371,9 +371,9 @@ end
 poly_prime_index :statuses, :resource
 ```
 
-## The Card Model
+## The Entry Model
 
-`Poly::Stack` is a **card-side** concern — the externality includes it, exactly
+`Poly::Stack` is an **entry-side** concern — the externality includes it, exactly
 as `Coin` includes `Poly::Role`:
 
 ```ruby
@@ -387,7 +387,7 @@ class Status < ApplicationRecord
 end
 ```
 
-That gives the `prime` scope and append-only priming — the newest card per
+That gives the `prime` scope and append-only priming — the newest entry per
 `(resource, role)` becomes prime, the prior prime is demoted, and its
 `superseded_by_id` is linked:
 
@@ -395,12 +395,12 @@ That gives the `prime` scope and append-only priming — the newest card per
 Status.create!(resource: post, resource_role: 'status', state: 'draft')
 Status.create!(resource: post, resource_role: 'status', state: 'public')
 
-Status.where(resource: post, resource_role: 'status').prime  # => the 'public' card
+Status.where(resource: post, resource_role: 'status').prime  # => the 'public' entry
 ```
 
 ## Wiring a Parent
 
-Poly ships **only the card concern**. The parent-side accessor macro is yours to
+Poly ships **only the entry concern**. The parent-side accessor macro is yours to
 write — the way Midas writes `has_coin` on `Poly::Role`. It's just `for_role`
 (from `Poly::Role`) plus the `prime` scope, composed into associations and
 scopes:
@@ -417,8 +417,8 @@ module Stackable
       stamp  = :"stack_stamp_#{name}"
 
       # so `post.statuses << Status.new(...)` stamps the role on add
-      define_method(stamp) do |card|
-        card.resource_role = label if card.respond_to?(:resource_role=) && card.resource_role.blank?
+      define_method(stamp) do |entry|
+        entry.resource_role = label if entry.respond_to?(:resource_role=) && entry.resource_role.blank?
       end
 
       has_many plural, -> { for_role(label).order(created_at: :desc) },
@@ -426,9 +426,9 @@ module Stackable
       has_one name, -> { for_role(label).prime },
               as: :resource, class_name: class_name
 
-      cards = -> { class_name.constantize }
-      scope :"where_#{name}",   ->(*v) { joins(name).merge(cards.call.where(value => v.flatten)) }
-      scope :"ever_#{name}",    ->(*v) { where(id: joins(plural).merge(cards.call.where(value => v.flatten)).select(:id)) }
+      entries = -> { class_name.constantize }
+      scope :"where_#{name}",   ->(*v) { joins(name).merge(entries.call.where(value => v.flatten)) }
+      scope :"ever_#{name}",    ->(*v) { where(id: joins(plural).merge(entries.call.where(value => v.flatten)).select(:id)) }
       scope :"without_#{name}", ->(*v) { where.not(id: public_send(:"where_#{name}", *v).select(:id)) }
       scope :"never_#{name}",   ->(*v) { where.not(id: public_send(:"ever_#{name}", *v).select(:id)) }
     end
@@ -446,24 +446,24 @@ end
 Which gives you:
 
 ```ruby
-post.status                          # => prime Status card (preloadable has_one)
+post.status                          # => prime Status entry (preloadable has_one)
 post.statuses                        # => full stack, newest-first (has_many)
 
-post.statuses.create!(state: 'trash')        # push a card; it becomes prime
-post.statuses << Status.new(state: 'public') # also pushes; role stamped on add
+post.statuses.create!(state: 'trash')        # append an entry; it becomes prime
+post.statuses << Status.new(state: 'public') # also appends; role stamped on add
 
 Post.where_status('public')          # prime state = public
-Post.without_status('trash')         # prime != trash, OR no card yet
-Post.ever_status('trash')            # any card in history = trash (de-duped)
-Post.never_status('trash')           # no card ever = trash
+Post.without_status('trash')         # prime != trash, OR no entry yet
+Post.ever_status('trash')            # any entry in history = trash (de-duped)
+Post.never_status('trash')           # no entry ever = trash
 
 Post.includes(:status)               # preload the prime to avoid N+1
 ```
 
 ## Soft-Delete
 
-`Poly::Stack` is the primitive behind soft-delete-as-history: a `trash` card is a
-deletion, a later card is a restore, and the stack is the audit trail. The
+`Poly::Stack` is the primitive behind soft-delete-as-history: a `trash` entry is a
+deletion, a later entry is a restore, and the stack is the audit trail. The
 *meaning* stays in your app — one-liners over your `has_stack` scopes:
 
 ```ruby
@@ -478,14 +478,14 @@ scope :trashed, -> { where_status(:trash) }
 
 ```mermaid
 sequenceDiagram
-    participant Card as New Card
+    participant Entry as New Entry
     participant PS as Poly::Stack
     participant Prior as Prior Prime
 
-    Card->>PS: before_create
+    Entry->>PS: before_create
     PS->>Prior: demote (is_prime = false)
-    PS->>Card: claim prime (is_prime = true)
-    Card->>PS: after_create
+    PS->>Entry: claim prime (is_prime = true)
+    Entry->>PS: after_create
     PS->>Prior: link superseded_by_id
 ```
 
