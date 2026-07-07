@@ -140,6 +140,7 @@ AND "comments"."commentable_type" = 'Post'
 >
 > ```ruby
 > has_many :comments, as: :commentable
+> # has_one :comment, as: :commentable   — also valid
 > ```
 >
 > Otherwise `PolymorphicJoinError` is raised.
@@ -194,7 +195,7 @@ end
 
 - Normalization (`strip + downcase`)
 - Format validation (`/\A[a-z0-9_]+\z/`)
-- Length validation
+- Length validation (`max_length:`, default `64`)
 - `for_role` scope
 - Optional immutability
 
@@ -262,7 +263,7 @@ end
 |----------------|---------------|------------------------------------|
 | `type_column:` | `:owner_type` | Column storing class name          |
 | `id_column:`   | `:owner_id`   | Column storing owner ID            |
-| `allow_nil:`   | `true`        | Raise if owner resolves to nil     |
+| `allow_nil:`   | `true`        | Allow owner to resolve to nil; if `false`, raise instead |
 | `immutable:`   | `false`       | Prevent owner changes after create |
 
 > [!IMPORTANT]
@@ -311,9 +312,9 @@ Supports:
 | `poly_role` | Adds `<name>_role` |
 | `poly_owner` | Adds owner columns |
 | `poly_stack` | Adds `is_prime` + `superseded_by_id` |
-| `poly_resource_index` | Composite resource index |
-| `poly_owner_index` | Composite owner index |
-| `poly_prime_index` | Partial unique index (one prime per resource/role) |
+| `poly_resource_index` | Composite resource index (supports `where:`, `unique:`, `index_name:`) |
+| `poly_owner_index` | Composite owner index (supports `where:`, `unique:`, `index_name:`) |
+| `poly_prime_index` | Partial unique index (one prime per resource/role); sugar for `poly_resource_index(..., where: 'is_prime')` |
 
 ## ID Flexibility
 
