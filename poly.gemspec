@@ -9,14 +9,15 @@ Gem::Specification.new do |spec|
   spec.email = ['lee@whittakertech.com']
 
   spec.summary = 'Polymorphic association utilities for ActiveRecord'
-  spec.description = 'Type-safe joins and role identity for polymorphic belongs_to associations.'
+  spec.description = 'Type-safe joins, role identity, owner stamping, and append-only golden-child ' \
+                      'history (Poly::Stack) for polymorphic belongs_to associations.'
   spec.homepage = 'https://github.com/whittakertech/poly'
   spec.license = 'MIT'
   spec.required_ruby_version = '>= 3.2.0'
 
   spec.metadata['homepage_uri'] = spec.homepage
   spec.metadata['source_code_uri'] = spec.homepage
-  spec.metadata['changelog_uri'] = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata['changelog_uri'] = "#{spec.homepage}/blob/master/CHANGELOG.md"
   spec.metadata['rubygems_mfa_required'] = 'true'
 
   spec.files = Dir['lib/**/*', 'Rakefile', 'README.md', 'CHANGELOG.md', 'LICENSE']

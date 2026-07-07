@@ -128,4 +128,106 @@ RSpec.describe Poly::Migration do
       expect(columns.fetch('tenant_id').type).to eq(:integer)
     end
   end
+
+  describe 'where: passthrough on index helpers' do
+    let(:table_name) { :poly_migration_where_indexes }
+
+    before do
+      connection.create_table(table_name, force: true) do |t|
+        t.string :resource_type
+        t.string :resource_id
+        t.string :resource_role
+        t.boolean :is_prime, default: false
+        t.string :owner_type
+        t.string :owner_id
+      end
+    end
+
+    after do
+      connection.drop_table(table_name, if_exists: true)
+    end
+
+    it 'applies a partial where clause to poly_resource_index' do
+      migration = Class.new(ActiveRecord::Migration[7.1]) do
+        include Poly::Migration
+
+        def change
+          poly_resource_index :poly_migration_where_indexes, :resource, where: 'is_prime'
+        end
+      end.new
+
+      migration.migrate(:up)
+
+      index = connection.indexes(table_name).find { |i| i.columns == %w[resource_type resource_id] }
+      expect(index.where).to eq('is_prime')
+    end
+
+    it 'applies a partial where clause to poly_owner_index' do
+      migration = Class.new(ActiveRecord::Migration[7.1]) do
+        include Poly::Migration
+
+        def change
+          poly_owner_index :poly_migration_where_indexes, where: 'owner_type IS NOT NULL'
+        end
+      end.new
+
+      migration.migrate(:up)
+
+      index = connection.indexes(table_name).find { |i| i.columns == %w[owner_type owner_id] }
+      expect(index.where).to eq('owner_type IS NOT NULL')
+    end
+
+    it 'supports an index_name override alongside where and unique' do
+      migration = Class.new(ActiveRecord::Migration[7.1]) do
+        include Poly::Migration
+
+        def change
+          poly_resource_index :poly_migration_where_indexes, :resource,
+                              unique: true, where: 'is_prime', index_name: 'index_custom_prime'
+        end
+      end.new
+
+      migration.migrate(:up)
+
+      index = connection.indexes(table_name).find { |i| i.name == 'index_custom_prime' }
+      expect(index).not_to be_nil
+      expect(index.unique).to be(true)
+      expect(index.where).to eq('is_prime')
+    end
+  end
+
+  describe 'poly_prime_index' do
+    let(:table_name) { :poly_migration_prime }
+
+    before do
+      connection.create_table(table_name, force: true) do |t|
+        t.string :resource_type
+        t.string :resource_id
+        t.string :resource_role
+        t.boolean :is_prime, default: false
+      end
+    end
+
+    after do
+      connection.drop_table(table_name, if_exists: true)
+    end
+
+    it 'creates a partial unique index on type/id/role, keeping the pre-refactor index name' do
+      migration = Class.new(ActiveRecord::Migration[7.1]) do
+        include Poly::Migration
+
+        def change
+          poly_prime_index :poly_migration_prime, :resource
+        end
+      end.new
+
+      migration.migrate(:up)
+
+      index = connection.indexes(table_name).find { |i| i.name == 'index_poly_migration_prime_prime' }
+      expect(index).not_to be_nil
+      expect(index.columns).to eq(%w[resource_type resource_id resource_role])
+      expect(index.unique).to be(true)
+      expect(index.where).to eq('is_prime')
+    end
+  end
 end

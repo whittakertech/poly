@@ -11,6 +11,7 @@ jobs:
 
     permissions:
       contents: read
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
@@ -30,7 +31,8 @@ jobs:
       - name: Build gem
         run: gem build poly.gemspec
 
+      - name: Configure RubyGems Trusted Publishing credentials
+        uses: rubygems/configure-rubygems-credentials@v1.0.0
+
       - name: Push gem to RubyGems
         run: gem push poly-*.gem
-        env:
-          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}

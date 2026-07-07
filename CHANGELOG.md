@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-07
+
+### Added
+
+- `Poly::Stack` — polymorphic, role-discriminated append-only history with a single
+  "prime" (golden-child) card per `(resource, role)`, enforced by a database-level
+  partial unique index. Payload-agnostic: manages only the prime marker
+  (`is_prime`) and audit edge (`superseded_by_id`); the payload column, actor, and
+  reason belong to the consuming model.
+- `where:` option on `poly_resource_index` and `poly_owner_index` migration
+  helpers — passes a partial-index condition through to `add_index`.
+
+### Changed
+
+- `poly_prime_index` is now implemented as sugar on top of `poly_resource_index`
+  (`where: 'is_prime'`) instead of duplicating its own `add_index` call. The
+  generated index name (`index_<table>_prime`) and indexed columns are
+  unchanged, so this is not a breaking change for existing schemas.
+
 ## [1.0.0] - 2026-02-18
 
 ### Added
@@ -51,7 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Creates methods like `joins_commentable(ClassName)` that validate the reverse
   `has_many`/`has_one` association before building the join SQL.
 
-[Unreleased]: https://github.com/leewhittaker/poly/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/leewhittaker/poly/compare/v0.2.0...v1.0.0
-[0.2.0]: https://github.com/leewhittaker/poly/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/leewhittaker/poly/releases/tag/v0.1.0
+[Unreleased]: https://github.com/whittakertech/poly/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/whittakertech/poly/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/whittakertech/poly/compare/v0.2.0...v1.0.0
+[0.2.0]: https://github.com/whittakertech/poly/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/whittakertech/poly/releases/tag/v0.1.0
