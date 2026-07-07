@@ -55,20 +55,22 @@ module Poly::Migration
     end
   end
 
-  def poly_resource_index(table, name, unique: false)
-    add_index table, [:"#{name}_type", :"#{name}_id"], unique: unique
+  def poly_resource_index(table, name, unique: false, where: nil, index_name: nil, columns: nil)
+    add_index table, columns || [:"#{name}_type", :"#{name}_id"],
+              unique: unique, where: where, name: index_name
   end
 
   # Partial unique index enforcing exactly one prime per (resource, role).
   def poly_prime_index(table, name = :resource)
-    add_index table,
-              [:"#{name}_type", :"#{name}_id", :"#{name}_role"],
-              unique: true, where: 'is_prime',
-              name: "index_#{table}_prime"
+    poly_resource_index table, name,
+                        unique: true, where: 'is_prime',
+                        index_name: "index_#{table}_prime",
+                        columns: [:"#{name}_type", :"#{name}_id", :"#{name}_role"]
   end
 
-  def poly_owner_index(table, type_column: :owner_type, id_column: :owner_id, unique: false)
-    add_index table, [type_column, id_column], unique: unique
+  def poly_owner_index(table, type_column: :owner_type, id_column: :owner_id, unique: false, where: nil,
+                       index_name: nil)
+    add_index table, [type_column, id_column], unique: unique, where: where, name: index_name
   end
 
   private
