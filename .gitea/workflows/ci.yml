@@ -9,6 +9,10 @@ on:
   pull_request:
     branches: [tea]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-sqlite:
     runs-on: ubuntu-latest

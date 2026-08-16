@@ -37,13 +37,18 @@ jobs:
       - name: Run linter
         run: bundle exec rubocop
 
-  # PostgreSQL lane: a real PG service container (GH-hosted runners can't
-  # reach Aerie's internal postgres-hatchery, so this is the correct
-  # mechanism per issue #186). Reduced representative subset -- all 3
-  # ActiveRecord versions against the newest supported Ruby only, rather
-  # than the full 3x3 cross-product, since the DB axis's purpose here is
-  # confirming the PostgreSQL connection/partial-index path per AR version,
-  # not re-validating every Ruby patch release against a live service.
+  # PostgreSQL lane: a real PG service container. This workflow runs on
+  # real GitHub-hosted runners (mirrored from Gitea via mirror.yml), NOT
+  # Aerie's self-hosted act_runner -- see .gitea/workflows/ci.yml for the
+  # Hatchery-backed equivalent used there. A real GH-hosted runner executes
+  # the job directly on the VM (no job-level `container:`), so service
+  # containers are reachable via `localhost` with a published port, not via
+  # the service name as a Docker network alias -- that alias-reachable
+  # behavior only applies when the job itself runs inside a container,
+  # which is true for Gitea's act_runner but not here. Each matrix leg gets
+  # its own isolated ephemeral runner VM on real GitHub Actions, so a fixed
+  # published port does not collide across the matrix the way it would on
+  # a single shared self-hosted runner host.
   test-postgres:
     runs-on: ubuntu-latest
 
@@ -54,11 +59,8 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: poly_test
-        # No host port publish: the job container reaches this service by
-        # its network alias (POLY_TEST_DB_HOST: postgres), not localhost --
-        # see that env var's comment below. A fixed `ports: - 5432:5432`
-        # publish isn't needed for that, and it made parallel matrix cells
-        # collide on the shared runner host ("port is already allocated").
+        ports:
+          - 5432:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -73,11 +75,7 @@ jobs:
 
     env:
       POLY_TEST_ADAPTER: postgresql
-      # Aerie's Gitea act_runner always runs the job itself in its own
-      # container (unlike a literal GitHub-hosted VM runner), so the
-      # service container isn't reachable via localhost -- it's reachable
-      # by its `services:` key as a Docker network alias instead.
-      POLY_TEST_DB_HOST: postgres
+      POLY_TEST_DB_HOST: localhost
       POLY_TEST_DB_PORT: 5432
       POLY_TEST_DB_USER: postgres
       POLY_TEST_DB_PASSWORD: postgres
