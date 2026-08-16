@@ -1,5 +1,10 @@
 # Poly
 
+[![Gem Version](https://img.shields.io/gem/v/poly)](https://rubygems.org/gems/poly)
+[![CI](https://github.com/whittakertech/poly/actions/workflows/ci.yml/badge.svg)](https://github.com/whittakertech/poly/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/whittakertech/poly/blob/master/LICENSE)
+[![Docs](https://img.shields.io/badge/docs-poly.whittakertech.com-blue)](https://poly.whittakertech.com)
+
 Type-safe joins, role identity, owner identity, and migration discipline for polymorphic `belongs_to` associations in Rails.
 
 ---

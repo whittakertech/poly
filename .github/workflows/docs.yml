@@ -1,0 +1,78 @@
+name: Docs
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docs
+  cancel-in-progress: true
+
+jobs:
+  # Gitea-only internal preview (YARD -> Gitea's own gh-pages).
+  # Documentation publishing of record is Codex (the `codex_publish` job
+  # below), which will own poly.whittakertech.com. Kept as a Gitea-side
+  # preview so the generated API docs stay inspectable (browsable via
+  # Gitea's file UI / cloneable) without waiting on a cross-repo Codex
+  # build.
+  deploy-gitea-preview:
+    if: github.server_url != 'https://github.com'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - run: bundle exec rake docs:api
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/api
+          publish_branch: gh-pages
+          force_orphan: true
+
+  # Real publish target: Codex compiles this repo's YARD API docs into its
+  # shared Astro/Starlight site, then deploys straight to this repo's own
+  # gh-pages on GitHub -- poly.whittakertech.com's real source from here
+  # on. Only fires on real GitHub Actions (Gitea has no cross-instance
+  # reusable-workflow resolution -- see ci.yml's identical guard for the
+  # same reason) and only for the actual master build, not every PR/branch.
+  build-docs-artifact:
+    if: github.server_url == 'https://github.com'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - run: bundle exec rake docs:api
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docs
+          path: docs/api
+
+  codex_publish:
+    needs: build-docs-artifact
+    if: github.server_url == 'https://github.com'
+    uses: whittakertech/codex/.github/workflows/publish_docs.yml@master
+    with:
+      engine_owner: whittakertech
+      engine_repo: poly
+      engine_ref: ${{ github.sha }}
+      docs_artifact_name: docs
+      site_url: https://poly.whittakertech.com
+    secrets:
+      CODEX_GITHUB_TOKEN: ${{ secrets.CODEX_GITHUB_TOKEN }}

@@ -3,6 +3,8 @@
 pkg/
 tmp/
 coverage/
+docs/api/
+.yardoc/
 .DS_Store
 Gemfile.lock
 *.log*

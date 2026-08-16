@@ -1,0 +1,3 @@
+--output-dir docs/api
+lib/**/*.rb
+- README.md

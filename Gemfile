@@ -32,9 +32,18 @@ group :development, :test do
 end
 
 group :development do
+  # rake itself isn't declared anywhere pre-existing in the bundle (CI invokes
+  # `bundle exec rspec`/`bundle exec rubocop` directly, never `bundle exec
+  # rake`), so `bundle exec rake docs:api` fails with "rake is not currently
+  # included in the bundle" without this. Needed to make the Rakefile's tasks
+  # (pre-existing `spec`/`default` and the new `docs:api`) actually runnable
+  # via `bundle exec rake`.
+  gem 'rake', require: false
+
   # Pin the lint toolchain so CI is reproducible; bump deliberately.
   gem 'rubocop', '~> 1.88.0', require: false
   gem 'rubocop-factory_bot', '~> 2.28.0', require: false
   gem 'rubocop-rails', '~> 2.35.0', require: false
   gem 'rubocop-rspec', '~> 3.10.0', require: false
+  gem 'yard', '~> 0.9.45', require: false
 end
