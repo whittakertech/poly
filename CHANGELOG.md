@@ -5,7 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-08-16
+
+### Added
+
+- `Poly::PolymorphicJoinError` (`lib/poly/polymorphic_join_error.rb`) — the
+  join-validation error raised from `lib/poly/joins.rb` is now namespaced
+  under `Poly`. The bare top-level `PolymorphicJoinError` constant remains as
+  a deprecated alias, so existing `rescue PolymorphicJoinError` call sites
+  keep working.
+- CI now covers a database axis (SQLite and PostgreSQL, the latter via a GitHub
+  Actions `services:` Postgres container) and an ActiveRecord/Rails version axis
+  (7.1, 7.2, 8.x), each matrix cell pinning the loaded AR version via the new
+  `ACTIVERECORD_VERSION` env var consumed by the `Gemfile`.
+- `spec/spec_helper.rb`'s database adapter is now parameterized via
+  `POLY_TEST_ADAPTER` (`sqlite3` default, or `postgresql`) instead of
+  hardcoding an in-memory SQLite connection.
+- README "Supported Databases" section documenting that MySQL is explicitly
+  unsupported (`AbstractMysqlAdapter` doesn't implement `supports_partial_index?`,
+  silently degrading `poly_prime_index` to a full-table unique index).
+- README and new specs (`spec/models/poly/stack_spec.rb`) documenting
+  `Poly::Stack`'s concurrency boundary — the `poly_stack_seize_prime`
+  demote-then-insert sequence in `lib/poly/stack.rb`, and the
+  `ActiveRecord::RecordNotUnique` failure mode it can hit under concurrent
+  writers. No new public API was added.
+
+### Fixed
+
+- README §5 ("Poly::Stack")'s "append-only" wording corrected: the contract
+  is immutable payload with mutable linkage/index metadata (`is_prime`,
+  `superseded_by_id` are mutated in place on supersession), not literally
+  immutable/append-only rows.
 
 ## [1.1.0] - 2026-07-07
 
@@ -70,7 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Creates methods like `joins_commentable(ClassName)` that validate the reverse
   `has_many`/`has_one` association before building the join SQL.
 
-[Unreleased]: https://github.com/whittakertech/poly/compare/v1.1.0...HEAD
+[1.2.0]: https://github.com/whittakertech/poly/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/whittakertech/poly/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/whittakertech/poly/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/whittakertech/poly/compare/v0.1.0...v0.2.0

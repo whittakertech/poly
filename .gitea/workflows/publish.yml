@@ -1,0 +1,15 @@
+name: Publish (squash tea -> master)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "publish" to confirm you want to squash-merge tea into master'
+        required: true
+
+jobs:
+  publish:
+    uses: WhittakerTech-org/.github/.github/workflows/publish.yml@main
+    with:
+      confirm: ${{ github.event.inputs.confirm }}
+    secrets: inherit

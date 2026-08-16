@@ -63,6 +63,28 @@ bundle install
 
 ---
 
+## Supported Databases
+
+Poly is tested in CI against **SQLite** and **PostgreSQL** (both Ruby x
+ActiveRecord 7.1/7.2/8.x combinations -- see `.github/workflows/ci.yml`).
+
+**MySQL is explicitly not supported.** `Poly::Migration#poly_prime_index`
+(see below) relies on a partial/conditional unique index --
+`add_index table, [...], unique: true, where: 'is_prime'` -- to enforce
+"exactly one prime row per resource+role, many non-primes allowed."
+PostgreSQL's and SQLite3's ActiveRecord adapters both override
+`supports_partial_index?` to `true`; `ActiveRecord::ConnectionAdapters::AbstractMysqlAdapter`
+does **not** override it, so it inherits the abstract default of `false`.
+Because `schema_creation.rb` only emits the index's `WHERE` clause when
+`supports_partial_index?` is true, MySQL silently drops the clause instead
+of raising -- producing a full-table unique index instead of a partial one,
+and quietly breaking the single-prime-per-role invariant (it would instead
+forbid more than one row total per resource+role). This is a silent
+correctness bug, not just reduced support, so running Poly against MySQL is
+unsupported rather than merely uncautioned-against.
+
+---
+
 # Quickstart
 
 ### Migration
@@ -143,7 +165,7 @@ AND "comments"."commentable_type" = 'Post'
 > # has_one :comment, as: :commentable   — also valid
 > ```
 >
-> Otherwise `PolymorphicJoinError` is raised.
+> Otherwise `Poly::PolymorphicJoinError` is raised.
 
 ### Join Flow
 
@@ -332,13 +354,17 @@ Supports:
 # 5. Poly::Stack
 
 A polymorphic, role-discriminated **history** where one entry is the current
-**prime** — the top of an append-only stack. `Poly::Role` is
+**prime** — the top of the stack. `Poly::Role` is
 the same idea at cardinality 1; `Poly::Stack` opens it up to many entries per
 `(resource, role)`, with the most-recently created always prime.
 
-It is **append-only** and **payload agnostic**: it manages the prime marker and
-an audit edge only. The payload column, the actor, and the reason belong to your
-model — Poly::Stack never reads them.
+It is **payload agnostic** with an **immutable payload, mutable linkage/index
+metadata** contract: it manages the prime marker and an audit edge only. The
+payload column, the actor, and the reason belong to your model — Poly::Stack
+never reads or rewrites them. What Poly::Stack *does* mutate in place, on
+supersession, are the prior prime row's own `is_prime` and `superseded_by_id`
+columns — historical rows are never deleted, but their linkage/index metadata
+is updated, so this is not a literally append-only/immutable-row contract.
 
 ## Schema
 
@@ -473,6 +499,36 @@ scope :trashed, -> { where_status(:trash) }
 
 > [!NOTE]
 > Prefer explicit scopes over `default_scope` for soft-delete.
+
+## Concurrency Boundary
+
+`poly_stack_seize_prime` (the `before_create` callback that demotes the prior
+prime and claims the new one) is **not** wrapped in an explicit row lock or
+transaction. Two writers racing the same `(resource, role)` at the same time
+can both read the same prior prime, both demote it, and both attempt to
+insert with `is_prime: true`.
+
+When that happens, it is the partial unique index (`add_index ..., unique:
+true, where: 'is_prime'`, built by `poly_prime_index`) — not the
+callback — that enforces "at most one prime per `(resource, role)`". The
+losing writer's `INSERT` raises `ActiveRecord::RecordNotUnique`, at the
+`INSERT` itself, after the callback has already run.
+
+Poly::Stack does not catch or retry this internally. **Callers that may write
+concurrently to the same `(resource, role)` should be prepared to rescue
+`ActiveRecord::RecordNotUnique` around the create call and retry** — e.g.
+re-fetch the current prime and re-attempt the create — rather than assuming a
+single `create!` is race-safe:
+
+```ruby
+begin
+  post.statuses.create!(state: 'public')
+rescue ActiveRecord::RecordNotUnique
+  # another writer won the race for this (resource, role); re-fetch and
+  # decide whether to retry, merge, or surface a conflict to the caller.
+  retry_or_handle_conflict
+end
+```
 
 ## Priming Flow
 

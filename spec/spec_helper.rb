@@ -19,9 +19,39 @@ require 'active_record'
 require 'poly'
 require 'factory_bot'
 
-# In-memory SQLite database
-ActiveRecord::Base.establish_connection(adapter: 'sqlite3', database: ':memory:')
+# Adapter is parameterized so the same suite can run against SQLite (default,
+# in-memory) or PostgreSQL -- see README's "Supported Databases" section and
+# issue #186. MySQL is not a supported option here: see that section for why.
+POLY_TEST_ADAPTER = ENV.fetch('POLY_TEST_ADAPTER', 'sqlite3')
+
+connection_config =
+  case POLY_TEST_ADAPTER
+  when 'sqlite3'
+    { adapter: 'sqlite3', database: ':memory:' }
+  when 'postgresql'
+    {
+      adapter: 'postgresql',
+      host: ENV.fetch('POLY_TEST_DB_HOST', 'localhost'),
+      port: ENV.fetch('POLY_TEST_DB_PORT', '5432'),
+      username: ENV.fetch('POLY_TEST_DB_USER', 'postgres'),
+      password: ENV.fetch('POLY_TEST_DB_PASSWORD', 'postgres'),
+      database: ENV.fetch('POLY_TEST_DB_NAME', 'poly_test')
+    }
+  else
+    raise "Unsupported POLY_TEST_ADAPTER: #{POLY_TEST_ADAPTER.inspect} " \
+          '(supported: sqlite3, postgresql -- see README "Supported Databases")'
+  end
+
+ActiveRecord::Base.establish_connection(connection_config)
 ActiveRecord::Base.logger = Logger.new(nil)
+
+if POLY_TEST_ADAPTER == 'postgresql'
+  # Postgres persists the schema across runs (unlike SQLite's `:memory:`), so
+  # drop and rebuild it each run to keep the suite idempotent.
+  ActiveRecord::Base.connection.tables.each do |table|
+    ActiveRecord::Base.connection.drop_table(table, force: :cascade)
+  end
+end
 
 # Schema
 ActiveRecord::Schema.define do

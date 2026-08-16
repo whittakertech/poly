@@ -1,0 +1,87 @@
+name: CI (Gitea)
+
+# tea = dev feedback loop. master = gate after Publish squash-merges tea in.
+# Never runs on GitHub -- mirror.yml only ever pushes master + tags there.
+
+on:
+  push:
+    branches: [tea, master]
+  pull_request:
+    branches: [tea]
+
+jobs:
+  test-sqlite:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ['3.2', '3.3', '3.4']
+        activerecord: ['7.1', '7.2', '8.x']
+    env:
+      POLY_TEST_ADAPTER: sqlite3
+      ACTIVERECORD_VERSION: ${{ matrix.activerecord }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with: { ruby-version: '${{ matrix.ruby }}', bundler-cache: true }
+      - run: bundle exec rspec
+      - run: bundle exec rubocop
+
+  test-postgres:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ['3.4']
+        activerecord: ['7.1', '7.2', '8.x']
+    env:
+      POLY_TEST_ADAPTER: postgresql
+      POLY_TEST_DB_HOST: postgres-hatchery
+      POLY_TEST_DB_PORT: 5432
+      POLY_TEST_DB_USER: postgres
+      ACTIVERECORD_VERSION: ${{ matrix.activerecord }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with: { ruby-version: '3.4', bundler-cache: true }
+      - name: Compute unique test database name
+        run: |
+          safe_ar=$(echo "${{ matrix.activerecord }}" | tr '.' '_')
+          echo "POLY_TEST_DB_NAME=ci_poly_${safe_ar}_${{ github.run_id }}_${{ github.run_attempt }}" >> "$GITHUB_ENV"
+      - name: Install postgresql-client
+        run: |
+          apt-get update -qq && apt-get install -y --no-install-recommends postgresql-client
+      - name: Create test database
+        run: |
+          PGPASSWORD= psql -h "$POLY_TEST_DB_HOST" -p "$POLY_TEST_DB_PORT" \
+            -U "$POLY_TEST_DB_USER" -d postgres \
+            -c "CREATE DATABASE \"$POLY_TEST_DB_NAME\";"
+      - run: bundle exec rspec
+
+  tag_release:
+    name: Tag release (if Poly::VERSION changed)
+    needs: [test-sqlite, test-postgres]
+    if: success() && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Compute version
+        id: version
+        run: |
+          VER=$(ruby -r ./lib/poly/version -e "puts Poly::VERSION")
+          echo "tag=v$VER" >> "$GITHUB_OUTPUT"
+      - name: Create + push tag if missing
+        run: |
+          TAG=${{ steps.version.outputs.tag }}
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "$TAG already exists — Poly::VERSION unchanged, nothing to release."
+            exit 0
+          fi
+          git config user.name "bubo-bot"
+          git config user.email "bubo-bot@whittakertech.com"
+          git tag "$TAG"
+          git remote set-url origin "https://bubo-bot:${BUBO_BOT_TOKEN}@gitea.whittakertech.com/${{ github.repository }}.git"
+          git push origin "$TAG"
+        env:
+          BUBO_BOT_TOKEN: ${{ secrets.BUBO_BOT_TOKEN }}

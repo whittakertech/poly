@@ -2,17 +2,25 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, 'epic/**']
   pull_request:
-    branches: [master]
+    branches: [master, 'epic/**']
 
 jobs:
-  test:
+  # SQLite lane: full Ruby x ActiveRecord cross-product. Cheap (in-memory,
+  # no external service), so we exercise every declared combination.
+  test-sqlite:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         ruby: ['3.2', '3.3', '3.4']
+        activerecord: ['7.1', '7.2', '8.x']
+
+    env:
+      POLY_TEST_ADAPTER: sqlite3
+      ACTIVERECORD_VERSION: ${{ matrix.activerecord }}
 
     steps:
       - uses: actions/checkout@v4
@@ -28,3 +36,62 @@ jobs:
 
       - name: Run linter
         run: bundle exec rubocop
+
+  # PostgreSQL lane: a real PG service container (GH-hosted runners can't
+  # reach Aerie's internal postgres-hatchery, so this is the correct
+  # mechanism per issue #186). Reduced representative subset -- all 3
+  # ActiveRecord versions against the newest supported Ruby only, rather
+  # than the full 3x3 cross-product, since the DB axis's purpose here is
+  # confirming the PostgreSQL connection/partial-index path per AR version,
+  # not re-validating every Ruby patch release against a live service.
+  test-postgres:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: poly_test
+        # No host port publish: the job container reaches this service by
+        # its network alias (POLY_TEST_DB_HOST: postgres), not localhost --
+        # see that env var's comment below. A fixed `ports: - 5432:5432`
+        # publish isn't needed for that, and it made parallel matrix cells
+        # collide on the shared runner host ("port is already allocated").
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ['3.4']
+        activerecord: ['7.1', '7.2', '8.x']
+
+    env:
+      POLY_TEST_ADAPTER: postgresql
+      # Aerie's Gitea act_runner always runs the job itself in its own
+      # container (unlike a literal GitHub-hosted VM runner), so the
+      # service container isn't reachable via localhost -- it's reachable
+      # by its `services:` key as a Docker network alias instead.
+      POLY_TEST_DB_HOST: postgres
+      POLY_TEST_DB_PORT: 5432
+      POLY_TEST_DB_USER: postgres
+      POLY_TEST_DB_PASSWORD: postgres
+      POLY_TEST_DB_NAME: poly_test
+      ACTIVERECORD_VERSION: ${{ matrix.activerecord }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby ${{ matrix.ruby }}
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+
+      - name: Run tests
+        run: bundle exec rspec

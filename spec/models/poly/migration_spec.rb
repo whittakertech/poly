@@ -5,6 +5,13 @@ require 'spec_helper'
 RSpec.describe Poly::Migration do
   let(:connection) { ActiveRecord::Base.connection }
 
+  # PostgreSQL's `pg_get_expr` echoes a compound predicate back wrapped in
+  # parens (e.g. `(owner_type IS NOT NULL)`); SQLite doesn't. Strip a single
+  # pair of wrapping parens so `index.where` assertions hold on both adapters.
+  def unwrap_where(clause)
+    clause.to_s.sub(/\A\((.*)\)\z/, '\1')
+  end
+
   describe 'table builder helpers' do
     let(:table_name) { :poly_migration_builders }
 
@@ -159,7 +166,7 @@ RSpec.describe Poly::Migration do
       migration.migrate(:up)
 
       index = connection.indexes(table_name).find { |i| i.columns == %w[resource_type resource_id] }
-      expect(index.where).to eq('is_prime')
+      expect(unwrap_where(index.where)).to eq('is_prime')
     end
 
     it 'applies a partial where clause to poly_owner_index' do
@@ -174,7 +181,7 @@ RSpec.describe Poly::Migration do
       migration.migrate(:up)
 
       index = connection.indexes(table_name).find { |i| i.columns == %w[owner_type owner_id] }
-      expect(index.where).to eq('owner_type IS NOT NULL')
+      expect(unwrap_where(index.where)).to eq('owner_type IS NOT NULL')
     end
 
     it 'supports an index_name override alongside where and unique' do
@@ -192,7 +199,7 @@ RSpec.describe Poly::Migration do
       index = connection.indexes(table_name).find { |i| i.name == 'index_custom_prime' }
       expect(index).not_to be_nil
       expect(index.unique).to be(true)
-      expect(index.where).to eq('is_prime')
+      expect(unwrap_where(index.where)).to eq('is_prime')
     end
   end
 
@@ -227,7 +234,7 @@ RSpec.describe Poly::Migration do
       expect(index).not_to be_nil
       expect(index.columns).to eq(%w[resource_type resource_id resource_role])
       expect(index.unique).to be(true)
-      expect(index.where).to eq('is_prime')
+      expect(unwrap_where(index.where)).to eq('is_prime')
     end
   end
 end

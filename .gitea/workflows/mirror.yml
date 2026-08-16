@@ -1,0 +1,20 @@
+name: Mirror to GitHub
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*.*.*"]
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Push master + tags to GitHub mirror
+        run: |
+          git push --force "https://x-access-token:${WHITTAKER_TECH_GITHUB_KEY}@github.com/whittakertech/poly.git" \
+            refs/heads/master:refs/heads/master \
+            refs/tags/*:refs/tags/*
+        env:
+          WHITTAKER_TECH_GITHUB_KEY: ${{ secrets.WHITTAKER_TECH_GITHUB_KEY }}

@@ -50,7 +50,7 @@ RSpec.describe Poly::Joins do
       end)
 
       expect { Comment.joins_commentable(Unrelated) }.to raise_error(
-        PolymorphicJoinError,
+        Poly::PolymorphicJoinError,
         /Polymorphic join requires Unrelated to declare: has_many :comments, as: :commentable/
       )
     end
