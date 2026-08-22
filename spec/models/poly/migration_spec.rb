@@ -20,7 +20,7 @@ RSpec.describe Poly::Migration do
     end
 
     it 'adds resource, role, owner columns and indexes in create_table' do
-      migration = Class.new(ActiveRecord::Migration[7.1]) do
+      migration = Class.new(ActiveRecord::Migration[POLY_MIGRATION_VERSION]) do
         include Poly::Migration
 
         def change
@@ -52,7 +52,7 @@ RSpec.describe Poly::Migration do
     it 'works when called inside change_table' do
       connection.create_table(table_name, force: true) { |_t| nil }
 
-      migration = Class.new(ActiveRecord::Migration[7.1]) do
+      migration = Class.new(ActiveRecord::Migration[POLY_MIGRATION_VERSION]) do
         include Poly::Migration
 
         def change
@@ -87,7 +87,7 @@ RSpec.describe Poly::Migration do
     end
 
     it 'adds resource, role, owner columns and indexes to an existing table' do
-      migration = Class.new(ActiveRecord::Migration[7.1]) do
+      migration = Class.new(ActiveRecord::Migration[POLY_MIGRATION_VERSION]) do
         include Poly::Migration
 
         def change
@@ -115,7 +115,7 @@ RSpec.describe Poly::Migration do
     end
 
     it 'supports custom id and owner columns in add_column style' do
-      migration = Class.new(ActiveRecord::Migration[7.1]) do
+      migration = Class.new(ActiveRecord::Migration[POLY_MIGRATION_VERSION]) do
         include Poly::Migration
 
         def change
@@ -137,7 +137,7 @@ RSpec.describe Poly::Migration do
   end
 
   describe 'where: passthrough on index helpers' do
-    let(:table_name) { :poly_migration_where_indexes }
+    let(:table_name) { :poly_where_idx }
 
     before do
       connection.create_table(table_name, force: true) do |t|
@@ -155,11 +155,11 @@ RSpec.describe Poly::Migration do
     end
 
     it 'applies a partial where clause to poly_resource_index' do
-      migration = Class.new(ActiveRecord::Migration[7.1]) do
+      migration = Class.new(ActiveRecord::Migration[POLY_MIGRATION_VERSION]) do
         include Poly::Migration
 
         def change
-          poly_resource_index :poly_migration_where_indexes, :resource, where: 'is_prime'
+          poly_resource_index :poly_where_idx, :resource, where: 'is_prime'
         end
       end.new
 
@@ -170,11 +170,11 @@ RSpec.describe Poly::Migration do
     end
 
     it 'applies a partial where clause to poly_owner_index' do
-      migration = Class.new(ActiveRecord::Migration[7.1]) do
+      migration = Class.new(ActiveRecord::Migration[POLY_MIGRATION_VERSION]) do
         include Poly::Migration
 
         def change
-          poly_owner_index :poly_migration_where_indexes, where: 'owner_type IS NOT NULL'
+          poly_owner_index :poly_where_idx, where: 'owner_type IS NOT NULL'
         end
       end.new
 
@@ -185,11 +185,11 @@ RSpec.describe Poly::Migration do
     end
 
     it 'supports an index_name override alongside where and unique' do
-      migration = Class.new(ActiveRecord::Migration[7.1]) do
+      migration = Class.new(ActiveRecord::Migration[POLY_MIGRATION_VERSION]) do
         include Poly::Migration
 
         def change
-          poly_resource_index :poly_migration_where_indexes, :resource,
+          poly_resource_index :poly_where_idx, :resource,
                               unique: true, where: 'is_prime', index_name: 'index_custom_prime'
         end
       end.new
@@ -220,7 +220,7 @@ RSpec.describe Poly::Migration do
     end
 
     it 'creates a partial unique index on type/id/role, keeping the pre-refactor index name' do
-      migration = Class.new(ActiveRecord::Migration[7.1]) do
+      migration = Class.new(ActiveRecord::Migration[POLY_MIGRATION_VERSION]) do
         include Poly::Migration
 
         def change

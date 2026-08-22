@@ -64,14 +64,20 @@ bundle install
 ## Requirements
 
 - Ruby >= 3.2
-- ActiveRecord >= 7.1
+- ActiveRecord >= 6.1
+
+Rails 6.1 is supported for legacy consumers and is exercised in CI on Ruby 3.3
+only (6.1 predates Ruby 3.4). On 6.1 the SQLite3 adapter enforces a 64-character
+index-name limit, so long table names may need an explicit `index_name:` on the
+`poly_*_index` helpers -- PostgreSQL applies a 63-character limit on every
+version, so this is good practice regardless.
 
 ---
 
 ## Supported Databases
 
 Poly is tested in CI against **SQLite** and **PostgreSQL** (both Ruby x
-ActiveRecord 7.1/7.2/8.x combinations -- see `.github/workflows/ci.yml`).
+ActiveRecord 6.1/7.1/7.2/8.x combinations -- see `.github/workflows/ci.yml`).
 
 **MySQL is explicitly not supported.** `Poly::Migration#poly_prime_index`
 (see below) relies on a partial/conditional unique index --

@@ -20,7 +20,14 @@ jobs:
       fail-fast: false
       matrix:
         ruby: ['3.2', '3.3', '3.4']
-        activerecord: ['7.1', '7.2', '8.x']
+        activerecord: ['6.1', '7.1', '7.2', '8.x']
+        exclude:
+          # Rails 6.1 exists for hellodancerrails (Rails 6.1.7.10 / Ruby
+          # 3.3.11), the consumer this floor was lowered for. Exercise exactly
+          # that pairing: 6.1 predates Ruby 3.4 entirely, and 3.2 is untested
+          # by any real consumer.
+          - { ruby: '3.2', activerecord: '6.1' }
+          - { ruby: '3.4', activerecord: '6.1' }
     env:
       POLY_TEST_ADAPTER: sqlite3
       ACTIVERECORD_VERSION: ${{ matrix.activerecord }}
@@ -38,6 +45,11 @@ jobs:
       matrix:
         ruby: ['3.4']
         activerecord: ['7.1', '7.2', '8.x']
+        include:
+          # Rails 6.1 needs a Ruby it supports; this lane's 3.4 is too new.
+          # Mirrors hellodancerrails, the PostgreSQL consumer this floor
+          # exists for.
+          - { ruby: '3.3', activerecord: '6.1' }
     env:
       POLY_TEST_ADAPTER: postgresql
       POLY_TEST_DB_HOST: postgres-hatchery
@@ -47,7 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
-        with: { ruby-version: '3.4', bundler-cache: true }
+        with: { ruby-version: '${{ matrix.ruby }}', bundler-cache: true }
       - name: Compute unique test database name
         run: |
           safe_ar=$(echo "${{ matrix.activerecord }}" | tr '.' '_')

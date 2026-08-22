@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-08-22
+
+### Changed
+
+- **Lowered the supported ActiveRecord/ActiveSupport floor from `>= 7.1` to
+  `>= 6.1`.** No library code changed: a full scan of `lib/poly/*.rb` found no
+  Rails 7.1+ APIs, and the only ActiveRecord internals Poly touches
+  (`arel_table`, `reflect_on_all_associations`, `reflect_on_association`,
+  `base_class`) have been stable since well before 6.1. The previous floor was
+  an end-of-life policy choice, not a technical constraint. Lowered so
+  hellodancerrails (Rails 6.1.7.10 / Ruby 3.3.11) can adopt Midas, which
+  depends on Poly.
+- CI gains a `6.1` cell on both the SQLite and PostgreSQL lanes, pinned to Ruby
+  3.3 -- the pairing hellodancerrails actually runs. 6.1 predates Ruby 3.4
+  entirely, so that combination is excluded.
+
+### Fixed
+
+- The PostgreSQL CI lane's `ruby/setup-ruby` step in `.gitea/workflows/ci.yml`
+  hardcoded `ruby-version: '3.4'` instead of reading `${{ matrix.ruby }}`, so
+  the matrix's Ruby axis was ignored on that lane.
+- `spec/models/poly/migration_spec.rb` hardcoded
+  `ActiveRecord::Migration[7.1]`, which raises `Unknown migration version` on
+  Rails 6.1. Test migrations now build against `POLY_MIGRATION_VERSION`,
+  derived from the ActiveRecord actually under test.
+- Shortened the `where:`-passthrough spec's table name, whose generated index
+  name (`index_poly_migration_where_indexes_on_resource_type_and_resource_id`,
+  67 chars) exceeded Rails 6.1's SQLite 64-character limit -- and PostgreSQL's
+  63-character limit on every version.
+
+### Development
+
+- The `6.1` bundle lane pins `concurrent-ruby < 1.3.5` (1.3.5 dropped the
+  implicit `require 'logger'` that ActiveSupport 6.1 relies on) and
+  `sqlite3 ~> 1.4` (Rails 6.1's SQLite3Adapter requires it; sqlite3 2.x needs
+  Rails 7.2+). Both are Gemfile-only -- neither is a runtime requirement of the
+  gem.
+
 ## [1.2.0] - 2026-08-16
 
 ### Added

@@ -19,6 +19,12 @@ require 'active_record'
 require 'poly'
 require 'factory_bot'
 
+# Migration compatibility version for test migrations. Must track the
+# ActiveRecord actually under test: `ActiveRecord::Migration[7.1]` raises
+# "Unknown migration version" on Rails 6.1, which the CI matrix exercises.
+# Built as a string so it round-trips exactly (Migration.[] calls #to_s).
+POLY_MIGRATION_VERSION = "#{ActiveRecord::VERSION::MAJOR}.#{ActiveRecord::VERSION::MINOR}".freeze
+
 # Adapter is parameterized so the same suite can run against SQLite (default,
 # in-memory) or PostgreSQL -- see README's "Supported Databases" section and
 # issue #186. MySQL is not a supported option here: see that section for why.

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Poly is a Ruby gem providing type-safe joins and role identity utilities for polymorphic `belongs_to` associations in Rails. It targets Ruby >= 3.2 and ActiveRecord/ActiveSupport >= 7.1.
+Poly is a Ruby gem providing type-safe joins and role identity utilities for polymorphic `belongs_to` associations in Rails. It targets Ruby >= 3.2 and ActiveRecord/ActiveSupport >= 6.1.
 
 ## Required Reading
 

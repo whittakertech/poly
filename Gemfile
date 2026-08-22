@@ -5,14 +5,36 @@ source 'https://rubygems.org'
 gemspec
 
 gem 'pg'
-gem 'sqlite3'
+
+# sqlite3 2.x requires ActiveRecord 7.2+. Rails 6.1's SQLite3Adapter declares
+# `gem 'sqlite3', '~> 1.4'` at load time, so the 6.1 lane must stay on 1.x or
+# `establish_connection` raises Gem::LoadError.
+if ENV['ACTIVERECORD_VERSION'] == '6.1'
+  gem 'sqlite3', '~> 1.4'
+else
+  gem 'sqlite3'
+end
 
 # CI pins the declared ActiveRecord/Rails version per matrix cell via
 # ACTIVERECORD_VERSION (see .github/workflows/ci.yml and issue #186). Left
-# unset, Bundler resolves whatever satisfies the gemspec's `>= 7.1` bound
+# unset, Bundler resolves whatever satisfies the gemspec's `>= 6.1` bound
 # (currently the latest 8.x). Values track the gemspec's declared support
-# window (7.1, 7.2, 8.x) -- keep in sync if that window changes.
+# window (6.1, 7.1, 7.2, 8.x) -- keep in sync if that window changes.
+#
+# 6.1 exists for hellodancerrails (Rails 6.1.7.10 / Ruby 3.3.11), which needs
+# Poly via Midas. Rails 6.1 is only exercised on Ruby 3.3 -- see the matrix
+# excludes in the CI workflows.
 case ENV['ACTIVERECORD_VERSION']
+when '6.1'
+  gem 'activerecord', '~> 6.1.0'
+  gem 'activesupport', '~> 6.1.0'
+  # concurrent-ruby 1.3.5 removed its implicit `require 'logger'`, which
+  # ActiveSupport 6.1 depends on -- without this pin `require 'active_record'`
+  # raises `NameError: uninitialized constant
+  # ActiveSupport::LoggerThreadSafeLevel::Logger`. Rails 7.1+ requires logger
+  # itself, so this is scoped to the 6.1 lane. hellodancerrails, the consumer
+  # this lane exists for, carries the same pin (concurrent-ruby 1.3.4).
+  gem 'concurrent-ruby', '< 1.3.5'
 when '7.1'
   gem 'activerecord', '~> 7.1.0'
   gem 'activesupport', '~> 7.1.0'

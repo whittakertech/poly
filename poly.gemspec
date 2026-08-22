@@ -23,6 +23,6 @@ Gem::Specification.new do |spec|
   spec.files = Dir['lib/**/*', 'Rakefile', 'README.md', 'CHANGELOG.md', 'LICENSE']
   spec.require_paths = ['lib']
 
-  spec.add_dependency 'activerecord', '>= 7.1'
-  spec.add_dependency 'activesupport', '>= 7.1'
+  spec.add_dependency 'activerecord', '>= 6.1'
+  spec.add_dependency 'activesupport', '>= 6.1'
 end
