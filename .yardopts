@@ -4,6 +4,5 @@
 --format markdown
 --title "Poly API Reference"
 --protected
+--exclude "\.(md|markdown)$"
 lib/**/*.rb
--
-README.md
