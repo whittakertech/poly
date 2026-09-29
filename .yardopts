@@ -1,3 +1,9 @@
 --output-dir docs/api
+--plugin markdown
+--markup markdown
+--format markdown
+--title "Poly API Reference"
+--protected
 lib/**/*.rb
-- README.md
+-
+README.md

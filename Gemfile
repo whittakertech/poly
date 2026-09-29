@@ -68,4 +68,5 @@ group :development do
   gem 'rubocop-rails', '~> 2.35.0', require: false
   gem 'rubocop-rspec', '~> 3.10.0', require: false
   gem 'yard', '~> 0.9.45', require: false
+  gem 'yard-markdown', '~> 0.9.1', require: false
 end

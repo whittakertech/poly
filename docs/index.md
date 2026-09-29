@@ -77,4 +77,4 @@ It provides structure only — everything else belongs to your application.
 
 ## API Reference
 
-Full YARD-generated API documentation is available at [/api/](/api/).
+Browse the [full YARD-generated API documentation](./api/).

@@ -32,6 +32,9 @@ jobs:
 
       - run: bundle exec rake docs:api
 
+      - name: Normalize YARD Markdown
+        run: ruby scripts/normalize_yard_markdown.rb docs/api
+
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
@@ -58,6 +61,9 @@ jobs:
           bundler-cache: true
 
       - run: bundle exec rake docs:api
+
+      - name: Normalize YARD Markdown
+        run: ruby scripts/normalize_yard_markdown.rb docs/api
 
       - uses: actions/upload-artifact@v4
         with:
