@@ -4,6 +4,11 @@ description: Type-safe joins, role identity, owner identity, and migration disci
 
 # Poly
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://media.whittakertech.com/brand/latest/Poly/logo/wordmark-dark.svg">
+  <img src="https://media.whittakertech.com/brand/latest/Poly/logo/wordmark.svg" alt="Poly" height="64">
+</picture>
+
 [![Gem Version](https://img.shields.io/gem/v/poly)](https://rubygems.org/gems/poly)
 [![CI](https://github.com/whittakertech/poly/actions/workflows/ci.yml/badge.svg)](https://github.com/whittakertech/poly/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/whittakertech/poly/blob/master/LICENSE)

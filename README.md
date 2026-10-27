@@ -1,4 +1,9 @@
-# Poly
+<h1>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://media.whittakertech.com/brand/latest/Poly/logo/wordmark-dark.svg">
+  <img src="https://media.whittakertech.com/brand/latest/Poly/logo/wordmark.svg" alt="Poly" height="64">
+</picture>
+</h1>
 
 [![Gem Version](https://img.shields.io/gem/v/poly)](https://rubygems.org/gems/poly)
 [![CI](https://github.com/whittakertech/poly/actions/workflows/ci.yml/badge.svg)](https://github.com/whittakertech/poly/actions/workflows/ci.yml)
